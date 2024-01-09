@@ -54,8 +54,11 @@ def train_one_epoch(model: torch.nn.Module,
             sys.exit(1)
 
         loss /= accum_iter
-        loss_scaler(loss, optimizer, parameters=model.parameters(),
-                    update_grad=(data_iter_step + 1) % accum_iter == 0)
+      
+        with torch.cuda.amp.autocast():
+          loss_scaler(loss, optimizer, parameters=model.parameters(),
+                      update_grad=(data_iter_step + 1) % accum_iter == 0)
+          
         if (data_iter_step + 1) % accum_iter == 0:
             optimizer.zero_grad()
 

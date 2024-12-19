@@ -8,24 +8,54 @@
 # DeiT: https://github.com/facebookresearch/deit
 # --------------------------------------------------------
 
-import os
+import torch
 import PIL
+from PIL import Image
 
-from torchvision import datasets, transforms
+from .split_data import read_split_data
+from torch.utils.data import Dataset
+
+from torchvision import transforms
 
 from timm.data import create_transform
 from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 
 
-def build_dataset(is_train, args):
-    transform = build_transform(is_train, args)
 
-    root = os.path.join(args.data_path, 'train' if is_train else 'val')
-    dataset = datasets.ImageFolder(root, transform=transform)
+class MyDataset(Dataset):
+    def __init__(self, image_paths, image_labels, transforms=None):
+        self.image_paths = image_paths
+        self.image_labels = image_labels
+        self.transforms = transforms
 
-    print(dataset)
+    def __getitem__(self, item):
+        image = Image.open(self.image_paths[item]).convert('RGB')
+        label = self.image_labels[item]
+        if self.transforms:
+            image = self.transforms(image)
+        return image, label
 
-    return dataset
+    def __len__(self):
+        return len(self.image_paths)
+
+    @staticmethod
+    def collate_fn(batch):
+        images, labels = tuple(zip(*batch))
+        images = torch.stack(images, dim=0)
+        labels = torch.as_tensor(labels)
+        return images, labels
+
+
+def build_dataset(args):
+    train_image_path, train_image_label, val_image_path, val_image_label, class_indices = read_split_data(args.data_root)
+
+    train_transform = build_transform(True, args)
+    valid_transform = build_transform(False, args)
+
+    train_set = MyDataset(train_image_path, train_image_label, train_transform)
+    valid_set = MyDataset(val_image_path, val_image_label, valid_transform)
+
+    return train_set, valid_set
 
 
 def build_transform(is_train, args):

@@ -12,13 +12,13 @@ import os
 import uuid
 from pathlib import Path
 
-import main_pretrain as trainer
+from applied import main_linprobe as classification
 import submitit
 
 
 def parse_args():
-    trainer_parser = trainer.get_args_parser()
-    parser = argparse.ArgumentParser("Submitit for MAE pretrain", parents=[trainer_parser])
+    classification_parser = classification.get_args_parser()
+    parser = argparse.ArgumentParser("Submitit for MAE linear probe", parents=[classification_parser])
     parser.add_argument("--ngpus", default=8, type=int, help="Number of gpus to request on each node")
     parser.add_argument("--nodes", default=2, type=int, help="Number of nodes to request")
     parser.add_argument("--timeout", default=4320, type=int, help="Duration of the job")
@@ -53,10 +53,10 @@ class Trainer(object):
         self.args = args
 
     def __call__(self):
-        import main_pretrain as trainer
+        import applied.main_linprobe as classification
 
         self._setup_gpu_args()
-        trainer.main(self.args)
+        classification.main(self.args)
 
     def checkpoint(self):
         import os
@@ -105,10 +105,10 @@ def main():
     executor.update_parameters(
         mem_gb=40 * num_gpus_per_node,
         gpus_per_node=num_gpus_per_node,
-        tasks_per_node=num_gpus_per_node,  # one task per GPU
+        tasks_per_node=num_gpus_per_node, # one task per GPU
         cpus_per_task=10,
         nodes=nodes,
-        timeout_min=timeout_min,  # max is 60 * 72
+        timeout_min=timeout_min,
         # Below are cluster dependent parameters
         slurm_partition=partition,
         slurm_signal_delay_s=120,

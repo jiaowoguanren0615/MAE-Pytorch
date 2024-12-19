@@ -14,7 +14,7 @@ from functools import partial
 import torch
 import torch.nn as nn
 
-from util.pos_embed import get_2d_sincos_pos_embed
+from models.pos_embed import get_2d_sincos_pos_embed
 
 
 
@@ -323,6 +323,9 @@ class MaskedAutoencoderViT(nn.Module):
         return x, mask, ids_restore
 
     def forward_decoder(self, x, ids_restore):
+        # return indices
+        return_indices = []
+
         # embed tokens
         x = self.decoder_embed(x)
 
@@ -338,6 +341,7 @@ class MaskedAutoencoderViT(nn.Module):
         # apply Transformer blocks
         for blk in self.decoder_blocks:
             x = blk(x)
+            return_indices.append(x)
         x = self.decoder_norm(x)
 
         # predictor projection
@@ -346,7 +350,7 @@ class MaskedAutoencoderViT(nn.Module):
         # remove cls token
         x = x[:, 1:, :]
 
-        return x
+        return x, return_indices
 
     def forward_loss(self, imgs, pred, mask):
         """
@@ -369,9 +373,9 @@ class MaskedAutoencoderViT(nn.Module):
     
     def forward(self, imgs, mask_ratio=0.75):
         latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
-        pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
+        pred, decoder_return_indices = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
         loss = self.forward_loss(imgs, pred, mask)
-        return loss, pred, mask
+        return loss, pred, mask, decoder_return_indices
 
 
 def mae_vit_base_patch16_dec512d8b(**kwargs):
@@ -404,12 +408,27 @@ mae_vit_large_patch16 = mae_vit_large_patch16_dec512d8b  # decoder: 512 dim, 8 b
 mae_vit_huge_patch14 = mae_vit_huge_patch14_dec512d8b  # decoder: 512 dim, 8 blocks
 
 
-if __name__ == '__main__':
-    from torchinfo import summary
-
-    net = mae_vit_base_patch16_dec512d8b()
-    X = torch.randn(1, 3, 224, 224)
-    loss, pred, mask = net(X)
-    print(loss.item())
-    print(pred.shape)
-    print(mask.shape)
+# if __name__ == '__main__':
+#     mae_model = mae_vit_base_patch16_dec512d8b()
+#     vit_ckpt = torch.load('../mae_pretrain_vit_base.pth', weights_only=True)
+#
+#     mae_model_params = mae_model.state_dict()
+#     vit_params = vit_ckpt['model']
+#
+#     keys_to_load = [k for k in vit_params.keys() if 'patch_embed' in k or 'blocks' in k or 'norm' in k]
+#
+#     for key in keys_to_load:
+#         if key in mae_model_params:
+#             mae_model_params[key] = vit_params[key]
+#
+#     mae_model.load_state_dict(mae_model_params)
+#     print('PASS!')
+#     print(keys_to_load)
+#     # net.load_state_dict(ckpt, strict=False)
+#     X = torch.randn(1, 3, 224, 224)
+#     loss, pred, mask, decoder_return_indices = net(X)
+#     print(loss.item())
+#     print(pred.shape)
+#     print(mask.shape)
+#     for y in decoder_return_indices[4: ]:
+#         print(y.size())

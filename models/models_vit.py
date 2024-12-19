@@ -53,6 +53,7 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
         return outcome
 
 
+
 def vit_base_patch16(**kwargs):
     model = VisionTransformer(
         patch_size=16, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4, qkv_bias=True,
@@ -75,7 +76,11 @@ def vit_huge_patch14(**kwargs):
 
 
 # if __name__ == '__main__':
+#     from torchinfo import summary
+#
 #     net = vit_base_patch16()
+#     net.reset_classifier(5)
+#     summary(net, input_size=(1, 3, 224, 224))
 #     print(net)
     # del net.head
     # ckpt = torch.load('../mae_pretrain_vit_base.pth', weights_only=True)['model']

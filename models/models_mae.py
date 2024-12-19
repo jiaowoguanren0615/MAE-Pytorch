@@ -181,6 +181,9 @@ class MaskedAutoencoderViT(nn.Module):
                  mlp_ratio=4., norm_layer=nn.LayerNorm, norm_pix_loss=False):
         super().__init__()
 
+        self.embed_dim = embed_dim
+        self.decoder_embed_dim = decoder_embed_dim
+
         # --------------------------------------------------------------------------
         # MAE encoder specifics
         self.patch_embed = PatchEmbed(img_size, patch_size, in_chans, embed_dim)
@@ -323,8 +326,6 @@ class MaskedAutoencoderViT(nn.Module):
         return x, mask, ids_restore
 
     def forward_decoder(self, x, ids_restore):
-        # return indices
-        return_indices = []
 
         # embed tokens
         x = self.decoder_embed(x)
@@ -341,7 +342,6 @@ class MaskedAutoencoderViT(nn.Module):
         # apply Transformer blocks
         for blk in self.decoder_blocks:
             x = blk(x)
-            return_indices.append(x)
         x = self.decoder_norm(x)
 
         # predictor projection
@@ -350,7 +350,7 @@ class MaskedAutoencoderViT(nn.Module):
         # remove cls token
         x = x[:, 1:, :]
 
-        return x, return_indices
+        return x
 
     def forward_loss(self, imgs, pred, mask):
         """
@@ -373,9 +373,9 @@ class MaskedAutoencoderViT(nn.Module):
     
     def forward(self, imgs, mask_ratio=0.75):
         latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
-        pred, decoder_return_indices = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
+        pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
         loss = self.forward_loss(imgs, pred, mask)
-        return loss, pred, mask, decoder_return_indices
+        return loss, pred, mask
 
 
 def mae_vit_base_patch16_dec512d8b(**kwargs):
@@ -420,15 +420,16 @@ mae_vit_huge_patch14 = mae_vit_huge_patch14_dec512d8b  # decoder: 512 dim, 8 blo
 #     for key in keys_to_load:
 #         if key in mae_model_params:
 #             mae_model_params[key] = vit_params[key]
-#
+#     for name, param in mae_model.named_parameters():
+#         if 'patch_embed' in name or 'blocks' in name or 'norm' in name:
+#             param.requires_grad = False
+#         else:
+#             param.requires_grad = True
 #     mae_model.load_state_dict(mae_model_params)
 #     print('PASS!')
 #     print(keys_to_load)
-#     # net.load_state_dict(ckpt, strict=False)
 #     X = torch.randn(1, 3, 224, 224)
-#     loss, pred, mask, decoder_return_indices = net(X)
+#     loss, pred, mask = mae_model(X)
 #     print(loss.item())
 #     print(pred.shape)
 #     print(mask.shape)
-#     for y in decoder_return_indices[4: ]:
-#         print(y.size())

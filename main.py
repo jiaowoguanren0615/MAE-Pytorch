@@ -51,7 +51,7 @@ from estimate_model import Predictor, Plot_ROC, OptAUC
 
 def get_args_parser():
     parser = argparse.ArgumentParser(
-        'MobileNetV4 training and evaluation script', add_help=False)
+        'MAE training and evaluation script', add_help=False)
     parser.add_argument('--batch-size', default=16, type=int)
     parser.add_argument('--epochs', default=1, type=int)
     parser.add_argument('--predict', default=True, type=bool, help='plot ROC curve and confusion matrix')
@@ -517,7 +517,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        'MobileNetV4 training and evaluation script', parents=[get_args_parser()])
+        'MAE training and evaluation script', parents=[get_args_parser()])
     args = parser.parse_args()
     if args.output_dir:
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)
